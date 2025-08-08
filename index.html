@@ -1,0 +1,112 @@
+<!-- Updated HTML for Ping Pong Game with PWA Install Button and Precache Support -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ping Pong</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000" />
+  <style>
+    body { margin: 0; background: black; color: white; font-family: sans-serif; overflow: hidden; }
+    canvas { display: block; margin: 0 auto; background: #222; }
+    #installBtn { position: fixed; bottom: 10px; right: 10px; padding: 10px 15px; background: #ff9800; color: black; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <button id="installBtn">Install App</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Game variables
+    let paddleHeight = 100;
+    let paddleWidth = 10;
+    let playerY = height / 2 - paddleHeight / 2;
+    let aiY = height / 2 - paddleHeight / 2;
+    let ballX = width / 2;
+    let ballY = height / 2;
+    let ballRadius = 10;
+    let ballSpeedX = 5;
+    let ballSpeedY = 5;
+
+    function drawRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function drawCircle(x, y, r, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2, false);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function resetBall() {
+      ballX = width / 2;
+      ballY = height / 2;
+      ballSpeedX = -ballSpeedX;
+    }
+
+    function update() {
+      ballX += ballSpeedX;
+      ballY += ballSpeedY;
+      if (ballY + ballRadius > height || ballY - ballRadius < 0) ballSpeedY = -ballSpeedY;
+      if (ballX - ballRadius < paddleWidth && ballY > playerY && ballY < playerY + paddleHeight) ballSpeedX = -ballSpeedX;
+      if (ballX + ballRadius > width - paddleWidth && ballY > aiY && ballY < aiY + paddleHeight) ballSpeedX = -ballSpeedX;
+      if (ballX - ballRadius < 0 || ballX + ballRadius > width) resetBall();
+      aiY += ((ballY - (aiY + paddleHeight / 2))) * 0.09;
+    }
+
+    function render() {
+      drawRect(0, 0, width, height, 'black');
+      drawRect(0, playerY, paddleWidth, paddleHeight, 'white');
+      drawRect(width - paddleWidth, aiY, paddleWidth, paddleHeight, 'white');
+      drawCircle(ballX, ballY, ballRadius, 'white');
+    }
+
+    function game() {
+      update();
+      render();
+    }
+    setInterval(game, 1000 / 60);
+
+    // Controls
+    window.addEventListener('mousemove', e => playerY = e.clientY - paddleHeight / 2);
+
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registered', reg))
+          .catch(err => console.error('SW registration failed', err));
+      });
+    }
+
+    // PWA Install Button
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'block';
+    });
+    installBtn.addEventListener('click', () => {
+      installBtn.style.display = 'none';
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(choice => {
+        if (choice.outcome === 'accepted') console.log('PWA setup accepted');
+        else console.log('PWA setup dismissed');
+        deferredPrompt = null;
+      });
+    });
+  </script>
+</body>
+</html>
